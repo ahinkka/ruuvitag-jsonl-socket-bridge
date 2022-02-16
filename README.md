@@ -12,6 +12,11 @@ To see full debug logging, run with
 RUST_LOG=trace cargo run
 ```
 
+To build with just 1 thread concurrently, run
+```
+cargo build --jobs=1
+```
+
 ## References
 
 - [Documentation for env\_logger](https://docs.rs/env_logger/latest/env_logger/)
