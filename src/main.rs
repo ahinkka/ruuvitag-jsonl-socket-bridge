@@ -1,3 +1,6 @@
+#[macro_use]
+extern crate log;
+
 extern crate btleplug;
 extern crate ruuvi_sensor_protocol;
 
@@ -11,14 +14,23 @@ use ruuvi_sensor_protocol::SensorValues;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
+    env_logger::init();
+    info!("Starting up...");
+
     let manager = Manager::new().await.unwrap();
     let adapters = manager.adapters().await?;
-    let adapter = adapters.into_iter().nth(0).unwrap();
-    eprintln!("Adapter: {}", adapter.adapter_info().await?);
+
+    debug!("Listing adapters...");
+    for adapter in &adapters {
+	debug!("{}", adapter.adapter_info().await?);
+    }
+
+    let adapter = adapters.get(0).unwrap();
+    info!("Using adapter: {}", adapter.adapter_info().await?);
 
     let mut events = adapter.events().await?;
     let start_result = adapter.start_scan(ScanFilter::default()).await?;
-    eprintln!("Scan started: {:?}", start_result);
+    info!("Scan started: {:?}", start_result);
 
     while let Some(event) = events.next().await {
         match event {
@@ -31,13 +43,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 id,
                 manufacturer_data,
 	    } => {
-                eprintln!(
+                trace!(
 		    "ManufacturerDataAdvertisement: {:?}, {:?}",
 		    id, manufacturer_data
                 );
 		for (manufacturer_id, bytes) in &manufacturer_data {
 		    let parsed = SensorValues::from_manufacturer_specific_data(manufacturer_id.clone(), bytes);
-		    eprintln!("parsed: {:?}", parsed);
+		    trace!("parsed: {:?}", parsed);
 		}
 	    }
 	    // TODO: some kind of "exit if we haven't received any valid events in a while" functionality
@@ -46,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     }
 
     let stop_result = adapter.stop_scan().await?;
-    eprintln!("Scan stopped: {:?}", stop_result);
+    info!("Scan stopped: {:?}", stop_result);
 
     Ok(())
 }
