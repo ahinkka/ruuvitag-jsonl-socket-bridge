@@ -1,0 +1,12 @@
+[Unit]
+Description=Bridge RuuviTag observations to a socket
+
+[Service]
+Environment="RUST_LOG=info"
+Environment="RUST_LOG_STYLE=never"
+ExecStart=/usr/bin/ruuvitag-jsonl-socket-bridge
+User=ruuvi-bridge
+Group=ruuvi-bridge
+
+[Install]
+WantedBy=multi-user.target

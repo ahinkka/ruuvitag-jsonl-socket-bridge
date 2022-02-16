@@ -1,5 +1,5 @@
 [package]
-name = "ruuvi-jsonl-socket-bridge"
+name = "ruuvitag-jsonl-socket-bridge"
 version = "0.1.0"
 edition = "2021"
 

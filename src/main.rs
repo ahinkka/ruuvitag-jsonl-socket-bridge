@@ -156,7 +156,10 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::init();
+    env_logger::builder()
+	.format_timestamp(None)
+	.init();
+
     let opt = Opt::from_args();
     info!("CLI opts: {:?}", opt);
     info!("Starting up...");

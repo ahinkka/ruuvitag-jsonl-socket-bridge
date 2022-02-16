@@ -645,7 +645,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b"
 
 [[package]]
-name = "ruuvi-jsonl-socket-bridge"
+name = "ruuvi-sensor-protocol"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b6bd4cf01ca03e36e9049ccb3a4c0616d392b63d31af18f85e7ef7799f1e99a1"
+
+[[package]]
+name = "ruuvitag-jsonl-socket-bridge"
 version = "0.1.0"
 dependencies = [
  "btleplug",
@@ -658,12 +664,6 @@ dependencies = [
  "tokio",
  "uuid",
 ]
-
-[[package]]
-name = "ruuvi-sensor-protocol"
-version = "0.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6bd4cf01ca03e36e9049ccb3a4c0616d392b63d31af18f85e7ef7799f1e99a1"
 
 [[package]]
 name = "ryu"
