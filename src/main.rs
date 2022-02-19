@@ -55,7 +55,7 @@ async fn bt_event_scan(
                 id,
                 manufacturer_data,
 	    } => {
-                trace!(
+                debug!(
 		    "ManufacturerDataAdvertisement: {:?}, {:?}",
 		    id, manufacturer_data
                 );
