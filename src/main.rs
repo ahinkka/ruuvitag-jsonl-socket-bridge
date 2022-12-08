@@ -149,7 +149,6 @@ struct Opt {
     hostname: String,
 
     /// Port
-    // we don't want to name it "speed", need to look smart
     #[structopt(short, long, default_value = "22222")]
     port: i16,
 }
