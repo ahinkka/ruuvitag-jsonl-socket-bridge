@@ -4,6 +4,8 @@ Description=Bridge RuuviTag observations to a socket
 [Service]
 Environment="RUST_LOG=info"
 Environment="RUST_LOG_STYLE=never"
+Restart=on-failure
+RestartSec=10s
 ExecStart=/usr/bin/ruuvitag-jsonl-socket-bridge
 User=ruuvi-bridge
 Group=ruuvi-bridge

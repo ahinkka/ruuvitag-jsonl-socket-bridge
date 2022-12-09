@@ -4,6 +4,7 @@ extern crate btleplug;
 extern crate ruuvi_sensor_protocol;
 
 use std::error::Error;
+use std::process;
 
 use structopt::StructOpt;
 
@@ -13,6 +14,7 @@ use futures::stream::StreamExt;
 use tokio::sync::broadcast;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::io::AsyncWriteExt;
+use tokio::time::{sleep, Duration};
 
 use ruuvi_sensor_protocol::{AccelerationVector, SensorValues};
 use crate::ruuvi_sensor_protocol::Acceleration;
@@ -77,7 +79,6 @@ async fn bt_event_scan(
 		    }
 		}
 	    }
-	    // TODO: some kind of "exit if we haven't received any valid events in a while" functionality
 	    _ => {}
         }
     }
@@ -151,6 +152,10 @@ struct Opt {
     /// Port
     #[structopt(short, long, default_value = "22222")]
     port: i16,
+
+    /// Timeout until initial Ruuvi event; 0 for no timeout
+    #[structopt(short, long, default_value = "30")]
+    initial_event_timeout: u8,
 }
 
 #[tokio::main]
@@ -164,7 +169,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     info!("Starting up...");
 
     let (tx, mut _rx) = broadcast::channel::<SensorValues>(32);
-    let tx2 = tx.clone();
 
     // Listener task for debugging:
     // tokio::spawn(async move {
@@ -175,6 +179,26 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // 	}
     // });
 
+    if opt.initial_event_timeout != 0 {
+        let monitor_tx = tx.clone();
+        let _monitor_task = tokio::spawn(async move {
+            let mut receiver = monitor_tx.clone().subscribe();
+            let event_task = receiver.recv();
+            let sleep_task = sleep(Duration::from_secs(u64::from(opt.initial_event_timeout)));
+
+            tokio::select! {
+                _ = event_task => {
+                    info!("Received a Ruuvi event before initial timeout, Bluetooth stack seems to be fine!")
+                }
+                _ = sleep_task => {
+                    error!("No Ruuvi events within the initial timeout. Is the Bluetooth stack properly initialized? Exiting!");
+                    process::exit(1);
+                }
+            };
+        });
+    }
+
+    let socket_tx = tx.clone();
     let _bt_task = tokio::spawn(async move {
 	let _ = bt_event_scan(tx).await;
     });
@@ -187,9 +211,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let listener = TcpListener::bind(bind_addr).await.unwrap();
     loop {
         let (socket, _) = listener.accept().await.unwrap();
-	let receiver = tx2.subscribe();
-	tokio::spawn(async move {
-	    handle_socket(socket, receiver).await;
-	});
+        let receiver = socket_tx.subscribe();
+        tokio::spawn(async move {
+            handle_socket(socket, receiver).await;
+        });
     }
 }
