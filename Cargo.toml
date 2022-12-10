@@ -13,4 +13,4 @@ btleplug = "0.10.4"
 futures = "0.3.25"
 ruuvi-sensor-protocol = "0.6.1"
 structopt = { version = "0.3.26", default-features = false }
-serde_json = "1.0.79"
+serde_json = "1.0.89"
