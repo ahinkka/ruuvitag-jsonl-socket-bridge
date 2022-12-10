@@ -26,15 +26,13 @@ use ruuvi_sensor_protocol::SensorValues;
 use ruuvi_sensor_protocol::Temperature;
 use ruuvi_sensor_protocol::TransmitterPower;
 
-async fn bt_event_scan(
-    tx: broadcast::Sender<SensorValues>
-) -> Result<(), Box<dyn Error>> {
+async fn bt_event_scan(tx: broadcast::Sender<SensorValues>) -> Result<(), Box<dyn Error>> {
     let manager = Manager::new().await.unwrap();
 
     let adapters = manager.adapters().await?;
     debug!("Listing adapters...");
     for adapter in &adapters {
-	debug!("{}", adapter.adapter_info().await?);
+        debug!("{}", adapter.adapter_info().await?);
     }
 
     let adapter = adapters.get(0).unwrap();
@@ -46,38 +44,40 @@ async fn bt_event_scan(
 
     while let Some(event) = events.next().await {
         match event {
-	    // https://docs.rs/btleplug/0.9.0/btleplug/api/enum.CentralEvent.html
-	    // TODO: add back with seen already filtering
-	    // CentralEvent::DeviceDiscovered(id) => {
+            // https://docs.rs/btleplug/0.9.0/btleplug/api/enum.CentralEvent.html
+            // TODO: add back with seen already filtering
+            // CentralEvent::DeviceDiscovered(id) => {
             //     eprintln!("DeviceDiscovered: {:?}", id);
-	    // }
-	    CentralEvent::ManufacturerDataAdvertisement {
+            // }
+            CentralEvent::ManufacturerDataAdvertisement {
                 id,
                 manufacturer_data,
-	    } => {
+            } => {
                 debug!(
-		    "ManufacturerDataAdvertisement: {:?}, {:?}",
-		    id, manufacturer_data
+                    "ManufacturerDataAdvertisement: {:?}, {:?}",
+                    id, manufacturer_data
                 );
-		for (manufacturer_id, bytes) in &manufacturer_data {
-		    let parsed = SensorValues::from_manufacturer_specific_data(manufacturer_id.clone(), bytes);
-		    trace!("parsed: {:?}", parsed);
-		    match parsed {
-			Ok(sv) => {
-			    let recipients = tx.send(sv);
-			    trace!("Message was sent to {:?}", recipients)
-			},
-			Err(e) => {
-			    match e {
-				ruuvi_sensor_protocol::ParseError::UnknownManufacturerId(_id) =>
-				    debug!("Got unknown manufacturer id: {:?}", e),
-				_ => error!("Failed to parse manufacturer data advertisement: {:?}", e)
-			    }
-			}
-		    }
-		}
-	    }
-	    _ => {}
+                for (manufacturer_id, bytes) in &manufacturer_data {
+                    let parsed = SensorValues::from_manufacturer_specific_data(
+                        manufacturer_id.clone(),
+                        bytes,
+                    );
+                    trace!("parsed: {:?}", parsed);
+                    match parsed {
+                        Ok(sv) => {
+                            let recipients = tx.send(sv);
+                            trace!("Message was sent to {:?}", recipients)
+                        }
+                        Err(e) => match e {
+                            ruuvi_sensor_protocol::ParseError::UnknownManufacturerId(_id) => {
+                                debug!("Got unknown manufacturer id: {:?}", e)
+                            }
+                            _ => error!("Failed to parse manufacturer data advertisement: {:?}", e),
+                        },
+                    }
+                }
+            }
+            _ => {}
         }
     }
 
@@ -87,52 +87,47 @@ async fn bt_event_scan(
     Ok(())
 }
 
-async fn handle_socket(
-    mut socket: TcpStream,
-    mut receiver: broadcast::Receiver<SensorValues>
-) {
+async fn handle_socket(mut socket: TcpStream, mut receiver: broadcast::Receiver<SensorValues>) {
     info!("New socket connection: {:?}", socket);
     loop {
-	let sv = receiver.recv().await.unwrap();
-	trace!("Socket RX {:?}", sv);
+        let sv = receiver.recv().await.unwrap();
+        trace!("Socket RX {:?}", sv);
 
-	let value = json!({
-	    "acceleration_vector_as_milli_g": sv.acceleration_vector_as_milli_g().map(|av| {
-		match av {
-		    AccelerationVector(a, b, c) => Some(vec!(a, b, c)),
-		}
-	    }),
-	    "battery_potential_as_millivolts": sv.battery_potential_as_millivolts(),
-	    "humidity_as_ppm": sv.humidity_as_ppm(),
-	    "mac_address": sv.mac_address(),
-	    "measurement_sequence_number": sv.measurement_sequence_number(),
-	    "movement_counter": sv.movement_counter(),
-	    "pressure_as_pascals": sv.pressure_as_pascals(),
-	    "temperature_as_millikelvins": sv.temperature_as_millikelvins(),
-	    "temperature_as_millicelsius": sv.temperature_as_millicelsius(),
-	    "tx_power_as_dbm": sv.tx_power_as_dbm()
-	});
+        let value = json!({
+            "acceleration_vector_as_milli_g": sv.acceleration_vector_as_milli_g().map(|av| {
+            match av {
+                AccelerationVector(a, b, c) => Some(vec!(a, b, c)),
+            }
+            }),
+            "battery_potential_as_millivolts": sv.battery_potential_as_millivolts(),
+            "humidity_as_ppm": sv.humidity_as_ppm(),
+            "mac_address": sv.mac_address(),
+            "measurement_sequence_number": sv.measurement_sequence_number(),
+            "movement_counter": sv.movement_counter(),
+            "pressure_as_pascals": sv.pressure_as_pascals(),
+            "temperature_as_millikelvins": sv.temperature_as_millikelvins(),
+            "temperature_as_millicelsius": sv.temperature_as_millicelsius(),
+            "tx_power_as_dbm": sv.tx_power_as_dbm()
+        });
 
-	let s = value.to_string();
-	let json_bytes = s.as_bytes();
-	let newline_bytes = b"\r\n";
+        let s = value.to_string();
+        let json_bytes = s.as_bytes();
+        let newline_bytes = b"\r\n";
 
-	let json_write_res = socket.write_all(&json_bytes).await;
-	let newline_write_res = socket.write_all(newline_bytes).await;
-	let flush_res = socket.flush().await;
-	match json_write_res.and(newline_write_res).and(flush_res) {
-	    Ok(v) => trace!("Socket write and flush: {:?}", v),
-	    Err(e) => {
-		match e.kind() {
-		    std::io::ErrorKind::BrokenPipe => {
-			info!("Closing socket: {:?}", e);
-			let _ = socket.shutdown().await;
-			break
-		    },
-		    _ => warn!("Failed to write or flush socket: {:?}", e)
-		}
-	    }
-	}
+        let json_write_res = socket.write_all(&json_bytes).await;
+        let newline_write_res = socket.write_all(newline_bytes).await;
+        let flush_res = socket.flush().await;
+        match json_write_res.and(newline_write_res).and(flush_res) {
+            Ok(v) => trace!("Socket write and flush: {:?}", v),
+            Err(e) => match e.kind() {
+                std::io::ErrorKind::BrokenPipe => {
+                    info!("Closing socket: {:?}", e);
+                    let _ = socket.shutdown().await;
+                    break;
+                }
+                _ => warn!("Failed to write or flush socket: {:?}", e),
+            },
+        }
     }
 }
 
@@ -158,9 +153,7 @@ struct Opt {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    env_logger::builder()
-	.format_timestamp(None)
-	.init();
+    env_logger::builder().format_timestamp(None).init();
 
     let opt = Opt::from_args();
     info!("CLI opts: {:?}", opt);
@@ -198,7 +191,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let socket_tx = tx.clone();
     let _bt_task = tokio::spawn(async move {
-	let _ = bt_event_scan(tx).await;
+        let _ = bt_event_scan(tx).await;
     });
 
     let mut bind_addr = opt.hostname.to_owned();
