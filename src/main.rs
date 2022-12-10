@@ -1,32 +1,30 @@
-#[macro_use]
-extern crate log;
-extern crate btleplug;
-extern crate ruuvi_sensor_protocol;
-
 use std::error::Error;
 use std::process;
 
+use futures::stream::StreamExt;
+use log::{debug, error, info, trace, warn};
+use serde_json::json;
 use structopt::StructOpt;
 
-use btleplug::api::{Central, CentralEvent, Manager as _, ScanFilter};
-use btleplug::platform::{Manager};
-use futures::stream::StreamExt;
-use tokio::sync::broadcast;
-use tokio::net::{TcpListener, TcpStream};
 use tokio::io::AsyncWriteExt;
+use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::broadcast;
 use tokio::time::{sleep, Duration};
 
-use ruuvi_sensor_protocol::{AccelerationVector, SensorValues};
-use crate::ruuvi_sensor_protocol::Acceleration;
-use crate::ruuvi_sensor_protocol::BatteryPotential;
-use crate::ruuvi_sensor_protocol::Humidity;
-use crate::ruuvi_sensor_protocol::MacAddress;
-use crate::ruuvi_sensor_protocol::MeasurementSequenceNumber;
-use crate::ruuvi_sensor_protocol::MovementCounter;
-use crate::ruuvi_sensor_protocol::Pressure;
-use crate::ruuvi_sensor_protocol::Temperature;
-use crate::ruuvi_sensor_protocol::TransmitterPower;
-use serde_json::json;
+use btleplug::api::{Central, CentralEvent, Manager as _, ScanFilter};
+use btleplug::platform::Manager;
+
+use ruuvi_sensor_protocol::Acceleration;
+use ruuvi_sensor_protocol::AccelerationVector;
+use ruuvi_sensor_protocol::BatteryPotential;
+use ruuvi_sensor_protocol::Humidity;
+use ruuvi_sensor_protocol::MacAddress;
+use ruuvi_sensor_protocol::MeasurementSequenceNumber;
+use ruuvi_sensor_protocol::MovementCounter;
+use ruuvi_sensor_protocol::Pressure;
+use ruuvi_sensor_protocol::SensorValues;
+use ruuvi_sensor_protocol::Temperature;
+use ruuvi_sensor_protocol::TransmitterPower;
 
 async fn bt_event_scan(
     tx: broadcast::Sender<SensorValues>
