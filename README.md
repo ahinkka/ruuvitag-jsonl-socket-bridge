@@ -12,7 +12,7 @@ To see full debug logging, run with
 RUST_LOG=trace cargo run
 ```
 
-To build with just 1 thread concurrently, run
+To build with just 1 thread concurrently (potentially useful on the Pi), run
 ```
 cargo build --jobs=1
 ```
